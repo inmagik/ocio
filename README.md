@@ -1,10 +1,11 @@
 # ocio
-An html viz production environment.
+An html viz production environment built with react and redux.
 
-## Some terms
+## Some terms
 Ocio provides a context where you can drop components. We'll call this this context **ocio environment** or simply **environment**.
 
 Components may:
+
 - enrich the environment by providing some data or functions (sources)
 - do something with data in the environment, for example visualize it in some way.
 
@@ -17,7 +18,8 @@ Each component provides an interface to connect with context which translates th
 
 Each component comes with a configuration interface that may be interactively edited. The configuration "connects" the component with the environment
 
-Each time a component is added or is modified its namspaced must be recalculated. If the namespace is used in some other  component configuration
+Each time a component is added or is modified its namespace must be recalculated.
+If the namespace is used in some other component configuration, that namespace should be recalculated too, and so on.
 
 
 ## Data types
@@ -35,7 +37,9 @@ As components expects particular kind of data in their configurations, ocio intr
 Datasets play a major role in our story and ocio must know about them.
 For example data series should be annotated with data types of each column.
 
-## components
+## Components
+
+
 
 ### configuration interface
 ```
@@ -49,19 +53,3 @@ Provides a data serie
 
 ### Bar chart
 Plots a data serie
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
