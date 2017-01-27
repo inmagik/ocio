@@ -2,10 +2,10 @@ import { combineReducers } from 'redux'
 
 
 const sources = (previousState = {}, action) => {
-  if (action.type === 'SET_SOURCE') {
+  if (action.type === 'SET_SOURCE_VALUE') {
     return {
       ...previousState,
-      [action.payload.key]: action.payload.data
+      [action.payload.namespace]: action.payload.value
     }
   }
 
@@ -20,7 +20,6 @@ const setValue = (previousState, field, value) => {
         ...previousState,
        [f]: setValue(previousState[f] || {}, remains.join('.'), value)
      }
-
   }
 
   return {

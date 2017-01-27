@@ -1,75 +1,104 @@
 import React from 'react'
 import { connect } from 'react-redux'
-import { setAdapterValue } from '../actions'
+import { Either } from 'ramda-fantasy'
 import { get } from 'lodash'
-import mapper from '../mapper'
+import { identity, find } from 'ramda'
+import { setAdapterValue } from '../actions'
+import generateProps from '../props'
 
-const ScalarField = ({ field, value, setValue }) => (
-  <div style={{ padding: '5px' }}>
-   <div>{field}</div>
-   <div>{value}</div>
-   <input value={value} onChange={(e) => setValue(field, e.target.value)} />
+const ScalarField = ({ field, fieldConf, localValues, globalValues, setValue }) => {
+  const value = get(localValues, field, '')
+  return (
+    <div style={{ padding: '5px' }}>
+      <div>{field}</div>
+      <div>{value}</div>
+      <input value={value} onChange={(e) => setValue(field, e.target.value)} />
+    </div>
+  )
+}
+
+const MapperField = ({ field, fieldConf, localValues, globalValues, setValue }) => (
+  <div key={field}>
+    <select onChange={(e) => setValue(`${field}.key`, e.target.value)}>
+      <option key={'----'}>----</option>
+      {Object.keys(globalValues).map(key => (
+        <option value={key} key={key}>{key}</option>
+      ))}
+    </select>
+    {Object.keys(fieldConf.mapper.fields).map(mapperField => (
+      <ScalarField
+        key={`${field}.args.${mapperField}`}
+        field={`${field}.args.${mapperField}`}
+        localValues={localValues}
+        globalValues={globalValues}
+        setValue={setValue}
+      />
+   ))}
   </div>
 )
 
-const generateProps = (values, instructions, sources) => {
-  return Object.keys(instructions.fields).reduce((result, field) => {
-    const fieldConf = instructions.fields[field]
-    // Simply sclare got the value
-    if (fieldConf.type === 'SCALAR') {
-      return { ...result, [field]: values[field] }
-    } else if (fieldConf.type === 'MAPPER') {
-      const mapResult = mapper(fieldConf.mapper.type)(sources['cities'], values[field] || {})
-      return { ...result, [field]: mapResult }
-    }
-  }, {})
+const Field = (props) => {
+  if (props.fieldConf.type === 'SCALAR') {
+    return <ScalarField {...props} />
+  } else if (props.fieldConf.type === 'MAPPER') {
+    return <MapperField {...props} />
+  } else {
+    return <div>Bad Conf....</div>
+  }
 }
 
 const Adapter = (WrappedComponent, instructions) => {
 
-  const AdaptComponent = ({ namespace, setAdapterValue, localValues, sources }) => {
+  const AdaptComponent = ({ namespace, setAdapterValue, localValues, sources, wrappedProps, error }) => {
 
     const setValue = (field, value) => setAdapterValue(namespace, field, value)
-    const wrappedProps = generateProps(localValues, instructions, sources)
-    console.log(wrappedProps)
-    // console.info(localValues, instructions, generateProps(localValues, instructions, sources))
 
     return (
-      <div>
-        {/* Input rendering */}
-        {Object.keys(instructions.fields).map(field => {
-          const fieldConf = instructions.fields[field]
-          if (fieldConf.type === 'SCALAR') {
-            return <ScalarField
-              field={field}
-              value={localValues[field] || ''}
-              setValue={setValue}
+      <div style={{ border: '1px solid deepskyblue', padding: '5px' }}>
+        <h4>WRAP NAMESPACE [{namespace}]</h4>
+        {/* Input rendering for adapter */}
+        <div className="adapter-inputs">
+          {Object.keys(instructions.fields).map(field => (
+            <Field
               key={field}
+              field={field}
+              fieldConf={instructions.fields[field]}
+              localValues={localValues}
+              globalValues={sources}
+              setValue={setValue}
             />
-          } else if (fieldConf.type === 'MAPPER') {
-            return <div key={field}>
-                 {Object.keys(fieldConf.mapper.fields).map(mapperField => (
-                    <ScalarField
-                      field={`${field}.${mapperField}`}
-                      value={get(localValues, `${field}.${mapperField}`, '')}
-                      setValue={setValue}
-                      key={`${field}.${mapperField}`}
-                    />
-                 ))}
-              </div>
-          }
-        })}
-
-        {/* {typeof wrappedProps.data !== 'undefined' &&  <WrappedComponent {...wrappedProps} />} */}
+          ))}
+        </div>
+        {/* Rendering of WrappedComponent */}
+        {error && (
+          <div style={{ color: 'red' }}>Bad Inputs: {error.message}</div>
+        )}
+        {wrappedProps && (
+          <div style={{ border: '1px solid green', padding: '5px' }}>
+            <WrappedComponent {...wrappedProps} />
+          </div>
+        )}
       </div>
     )
   }
 
   function mapStateToProps(state, ownProps) {
-    return {
-      localValues: state.adapters[ownProps.namespace] || {}, // <--- Related to adapter
-      sources: state.sources,
-    }
+    const localValues = state.adapters[ownProps.namespace] || {}
+    const sources = state.sources
+    const eitherProps = generateProps(instructions, localValues, sources)
+
+    return Either.either(
+      (error) => ({
+        error,
+        localValues,
+        sources,
+      }),
+      (wrappedProps) => ({
+        wrappedProps,
+        localValues,
+        sources,
+      })
+    )(eitherProps)
   }
 
   return connect(mapStateToProps, {
